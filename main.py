@@ -8,6 +8,7 @@ from config import openai_key
 from localization import Localization
 from aiogram.types.web_app_info import WebAppInfo
 from db.chat_db import Chat_DB
+from wrappers.msg_data import MsgData
 
 storage = MemoryStorage()
 dp = Dispatcher(bot, storage=storage)
@@ -28,28 +29,19 @@ def setup_handler(dp):
 
 
 async def cmd_start(message: types.Message):
-    chat_id = message.chat.id
-    user_info = message.from_user
-    user_id, username, name, surname = (
-        user_info.id,
-        user_info.username,
-        user_info.first_name,
-        user_info.last_name,
-    )
-    db.create_user(user_id, username, name, surname)
+    info = MsgData(message)
+    db.create_user(info.user_id, info.username, info.name, info.surname)
     keyboard = app_web_key()
-    await bot.send_message(chat_id=chat_id, text=Localization.welcome_msg)
+    await bot.send_message(chat_id=info.chat_id, text=Localization.welcome_msg)
     await bot.send_message(
-        chat_id=chat_id, text="Select the chatacter 👏", reply_markup=keyboard
+        chat_id=info.chat_id, text="Select the chatacter 👏", reply_markup=keyboard
     )
     await message.delete()
 
 
 async def query_from_user(message: types.Message):
-    user_id = message.from_user.id
-    chat_id = message.chat.id
-    text_of_query = message.text
-    db.users_msg(user_id, text_of_query)
+    info = MsgData(message)
+    db.users_msg(info.user_id, info.text)
     if text_of_query.lower == "quit" or text_of_query.lower == "/quit":
         text_of_query = "The user doesn't want to continue the dialog, you have to end it and say goodbye to them"
         query = [
@@ -60,16 +52,16 @@ async def query_from_user(message: types.Message):
     ]
     query_to_ai = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=query)
     answer_to_query = query_to_ai["choices"][0]["message"]["content"]
-    await bot.send_message(chat_id=chat_id, text=answer_to_query)
-    db.answer_msg(user_id, answer_to_query)
+    await bot.send_message(info.chat_id, text=answer_to_query)
+    db.answer_msg(info.user_id, answer_to_query)
 
 
 async def cmd_menu(message: types.Message):
-    chat_id = message.chat.id
+    info = MsgData(message)
     keyboard = app_web_key()
-    await bot.send_message(chat_id=chat_id, text=Localization.menu_msg)
+    await bot.send_message(chat_id=info.chat_id, text=Localization.menu_msg)
     await bot.send_message(
-        chat_id=chat_id, text="Select the chatacter 👏", reply_markup=keyboard
+        chat_id=info.chat_id, text="Select the chatacter 👏", reply_markup=keyboard
     )
     db.fetch_all_data()
     await message.delete()
@@ -86,29 +78,20 @@ def app_web_key():
 
 
 async def user_choise(message: types.Message):
-    user_info = message.from_user
-    user_id, name, surname = (
-        user_info.id,
-        user_info.first_name,
-        user_info.last_name,
-    )
-    chat_id = message.chat.id
-    message_id = message.message_id - 1
-    await message.delete()
-    await bot.delete_message(chat_id=chat_id, message_id=message_id)
-    user_choise = message.web_app_data.data
-    db.selection_record(user_id, user_choise)
-    if user_choise == "mario":
-        text_of_query = f"Your name is Mario from the legendary Nintendo game, briefly greet the user named {name} {surname}, tell us about yourself and say you're willing to answer any questions you may have"
-    elif user_choise == "albert":
-        text_of_query = f"Your name is Albert Einstein - famous physicist - scientist, briefly greet the username {name} {surname}, tell us about yourself and say you are ready to answer any questions you may have"
+    info = MsgData(message)
+    await bot.delete_message(chat_id=info.chat_id, message_id=info.message_id)
+    db.selection_record(info.chat_id, user_choise)
+    if info.user_choise == "mario":
+        text_of_query = f"Your name is Mario from the legendary Nintendo game, briefly greet the user named {info.name} {info.surname}, tell us about yourself and say you're willing to answer any questions you may have"
+    elif info.user_choise == "albert":
+        text_of_query = f"Your name is Albert Einstein - famous physicist - scientist, briefly greet the username {info.name} {info.surname}, tell us about yourself and say you are ready to answer any questions you may have"
     query = [
         {"role": "assistant", "content": text_of_query},
     ]
     query_to_ai = openai.ChatCompletion.create(model="gpt-3.5-turbo", messages=query)
     answer_to_query = query_to_ai["choices"][0]["message"]["content"]
-    await bot.send_message(chat_id=chat_id, text=answer_to_query)
-    db.answer_msg(user_id, answer_to_query)
+    await bot.send_message(chat_id=info.chat_id, text=answer_to_query)
+    db.answer_msg(info.user_id, answer_to_query)
 
 
 setup_handler(dp)
