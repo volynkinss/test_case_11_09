@@ -22,7 +22,7 @@ openai.api_key = openai_key
 
 
 def setup_handler(dp):
-    dp.message_handler(Command("Start"))(cmd_start)
+    dp.message_handler(Command("start"))(cmd_start)
     dp.message_handler(Command("menu"))(cmd_menu)
     dp.message_handler(content_types=["web_app_data"])(user_choise)
     dp.message_handler(content_types=types.ContentType.TEXT)(query_from_user)
@@ -80,7 +80,7 @@ def app_web_key():
 async def user_choise(message: types.Message):
     info = MsgData(message)
     await bot.delete_message(chat_id=info.chat_id, message_id=info.message_id)
-    db.selection_record(info.chat_id, user_choise)
+    db.selection_record(info.chat_id, info.user_choise)
     if info.user_choise == "mario":
         text_of_query = f"Your name is Mario from the legendary Nintendo game, briefly greet the user named {info.name} {info.surname}, tell us about yourself and say you're willing to answer any questions you may have"
     elif info.user_choise == "albert":
